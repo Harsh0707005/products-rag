@@ -140,7 +140,7 @@ class RAGModel():
         return results
 
     def search_with_image(self, image_path, k=15):
-        print("Searching products with image")
+        print("Searching products with image...")
         if not (self.index_file and os.path.isfile(self.index_file)):
             print("FAISS index file not found")
             return
