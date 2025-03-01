@@ -17,6 +17,9 @@ class RAGModel():
         self.text_embedding_dim = self.model.get_sentence_embedding_dimension()
         self.img_embedding_dim = self.imgModel.get_sentence_embedding_dimension()
 
+        if self.img_embedding_dim is None:
+            self.img_embedding_dim = 512
+
         if (products_file):
             self.products_file = products_file
             self.preprocessed_file = f"{products_file[:-5]}-preprocessed.pkl"
@@ -49,13 +52,13 @@ class RAGModel():
                     img_content = fb.read()
 
             img = Image.open(BytesIO(img_content)).convert("RGB")
-            
+
             image_embedding = self.imgModel.encode(img)
 
             return image_embedding
         except Exception as e:
             print(e)
-            return np.zeros(self.img_embedding_dim)
+            return np.zeros((self.img_embedding_dim,))
 
 
     def generate_embeddings(self):
@@ -73,7 +76,7 @@ class RAGModel():
         products_df["image_embeddings"] = products_df.apply(
             lambda row: self.generate_image_embeddings(row["primary_image"]) 
             if row.get("primary_image") 
-            else np.zeros(self.img_embedding_dim), 
+            else np.zeros((self.img_embedding_dim,)), 
             axis=1
         )
 
@@ -150,14 +153,14 @@ class RAGModel():
 
 rag = RAGModel("products.json")
 
-# rag.preprocess()
-# rag.generate_embeddings()
+rag.preprocess()
+rag.generate_embeddings()
 
 # results = rag.search_products("watches")
 # with open("results.json", "w") as f:
 #     json.dump(results, f, indent = 4)
 
-results = rag.search_with_image("abc.jpeg")
+results = rag.search_with_image("abc.jpg")
 
 with open("results.json", "w") as f:
     json.dump(results, f, indent=4)
