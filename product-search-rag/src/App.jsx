@@ -37,7 +37,7 @@ export default function SearchPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", backgroundColor: "#f4f4f4", padding: "20px", width: "100vw" }}>
-      <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>Product Search</h1>
+      <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px", color: "black" }}>Product Search</h1>
       <div style={{ display: "flex", gap: "10px", marginBottom: "16px", width: "100%", maxWidth: "400px" }}>
         <input 
           type="text" 
