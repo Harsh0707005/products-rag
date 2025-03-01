@@ -104,7 +104,7 @@ class RAGModel():
         faiss.write_index(index, f"{self.products_file[:-5]}_index.faiss")
         self.index_file = f"{self.products_file[:-5]}_index.faiss"
 
-    def search_products(self, query, index=None, k=5):
+    def search_products(self, query, index=None, k=15):
         print("Searching products with text")
         if not (self.index_file and os.path.isfile(self.index_file)):
             print("FAISS index file not found")
@@ -112,22 +112,31 @@ class RAGModel():
         elif not (self.preprocessed_file and os.path.isfile(self.preprocessed_file)):
             print("Preprocess file not found")
             return
-        
+
         query_embedding = self.model.encode([query])
         zero_img_embedding = np.zeros((1, self.img_embedding_dim))
         combined_query_embedding = np.hstack([query_embedding, zero_img_embedding]).astype('float32')
         index = faiss.read_index(self.index_file)
-        distances, indices = index.search(combined_query_embedding, k)
+        distances, indices = index.search(combined_query_embedding, k * 2)
 
         results = []
+        seen_product_names = set()
         products_df = pandas.read_pickle(self.preprocessed_file)
+
         for i in range(len(indices[0])):
             idx = indices[0][i]
             distance = distances[0][i]
 
             product = products_df.iloc[idx].to_dict()
-            product["similarity"] = float(1/(1+distance))
-            results.append(product)
+            product["similarity"] = float(1 / (1 + distance))
+
+            if product["product_name"] not in seen_product_names:
+                seen_product_names.add(product["product_name"])
+                results.append(product)
+
+            if len(results) >= k:
+                break
+
         return results
 
     def search_with_image(self, image_path, k=15):
@@ -168,17 +177,18 @@ class RAGModel():
         return results
         
 
+if __name__ == "__main__":
 
-rag = RAGModel("merged.json")
+    rag = RAGModel("aelia.json")
 
-# rag.preprocess()
-# rag.generate_embeddings()
+    rag.preprocess()
+    rag.generate_embeddings()
 
-# results = rag.search_products("watches")
-# with open("results.json", "w") as f:
-#     json.dump(results, f, indent = 4)
+    results = rag.search_products("watches")
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent = 4)
 
-results = rag.search_with_image("search_image.jpg")
+    # results = rag.search_with_image("search_image.jpg")
 
-with open("results.json", "w") as f:
-    json.dump(results, f, indent=4)
+    # with open("results.json", "w") as f:
+    #     json.dump(results, f, indent=4)
