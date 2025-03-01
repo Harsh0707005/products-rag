@@ -1,74 +1,74 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 
-export default function App() {
+export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [image, setImage] = useState(null);
   const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleTextSearch = async () => {
+  const handleSearch = async () => {
+    if (!query) return;
+    setLoading(true);
     try {
-      const response = await axios.get(`http://127.0.0.1:5000/search?query=${query}`);
-      console.log(response.data)
-      setResults(response.data);
+      const { data } = await axios.get(`http://127.0.0.1:5000/search?query=${query}`);
+      setResults(data);
     } catch (error) {
-      console.error("Error searching by text:", error);
+      console.error("Search error:", error);
     }
+    setLoading(false);
   };
 
   const handleImageSearch = async () => {
     if (!image) return;
-    
+    setLoading(true);
     const formData = new FormData();
     formData.append("image", image);
-
     try {
-      const response = await axios.post("http://127.0.0.1:5000/search_image", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+      const { data } = await axios.post("http://127.0.0.1:5000/search_image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setResults(response.data);
+      setResults(data);
     } catch (error) {
-      console.error("Error searching by image:", error);
+      console.error("Image search error:", error);
     }
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4">Product Search</h1>
-
-      <div className="mb-4">
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", backgroundColor: "#f4f4f4", padding: "20px", width: "100vw" }}>
+      <h1 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "16px" }}>Product Search</h1>
+      <div style={{ display: "flex", gap: "10px", marginBottom: "16px", width: "100%", maxWidth: "400px" }}>
         <input 
           type="text" 
+          placeholder="Enter search query..." 
           value={query} 
           onChange={(e) => setQuery(e.target.value)} 
-          placeholder="Search by text..."
-          className="border p-2 rounded mr-2"
+          style={{ flex: 1, padding: "10px", borderRadius: "5px", border: "1px solid #ccc" }}
         />
-        <button onClick={handleTextSearch} className="bg-blue-500 text-white px-4 py-2 rounded">
-          Search
-        </button>
+        <button onClick={handleSearch} disabled={loading} style={{ padding: "10px", borderRadius: "5px", border: "none", backgroundColor: "blue", color: "white", cursor: "pointer" }}>Search</button>
       </div>
-
-      <div className="mb-4">
-        <input type="file" onChange={(e) => setImage(e.target.files[0])} />
-        <button onClick={handleImageSearch} className="bg-green-500 text-white px-4 py-2 rounded mt-2">
-          Search by Image
-        </button>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+        <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} style={{ display: "none" }} id="file-upload" />
+        <label htmlFor="file-upload" style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", backgroundColor: "blue", color: "white", padding: "10px", borderRadius: "5px" }}>
+          Upload Image
+        </label>
+        {image && <button onClick={handleImageSearch} disabled={loading} style={{ padding: "10px", borderRadius: "5px", border: "none", backgroundColor: "green", color: "white", cursor: "pointer" }}>Search by Image</button>}
       </div>
-
-      <div className="mt-4 w-full max-w-3xl">
-        {results.length > 0 ? (
-          results.map((product, index) => (
-            <div key={index} className="border p-4 bg-white rounded shadow mb-2">
-              <h2 className="font-bold">{product.product_name}</h2>
-              <p>{product.description}</p>
-              {product.primary_image && <img src={product.primary_image} alt="Product" className="w-32 h-32 object-cover mt-2" />}
-              <p className="text-gray-600">Similarity: {(product.similarity * 100).toFixed(2)}%</p>
-            </div>
-          ))
-        ) : (
-          <p>No results found.</p>
-        )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "16px", marginTop: "24px" }}>
+        {results.map((result, index) => (
+          <div 
+            key={index} 
+            style={{ width: "200px", padding: "10px", borderRadius: "8px", backgroundColor: "white", boxShadow: "0px 2px 10px rgba(0,0,0,0.1)", cursor: "pointer" }}
+            onClick={() => window.open(result.product_url, "_blank")}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+          >
+            <img src={result.primary_image} alt={result.name} style={{ width: "100%", objectFit: "contain", borderRadius: "5px" }} />
+            <h2 style={{ marginTop: "8px", fontSize: "16px", fontWeight: "bold" }}>{result.name}</h2>
+            <p style={{ fontSize: "14px", color: "gray" }}>{result.description}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

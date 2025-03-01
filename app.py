@@ -7,7 +7,6 @@ from model import RAGModel
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
-# If needed, explicitly set headers in every route response
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
