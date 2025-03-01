@@ -11,6 +11,7 @@ from io import BytesIO
 class RAGModel():
 
     def __init__(self, products_file=None):
+        print("Initializing models")
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
         self.imgModel = SentenceTransformer("clip-ViT-B-32")
 
@@ -30,6 +31,7 @@ class RAGModel():
             self.index_file = None
 
     def preprocess(self, products_file=None):
+        print("Preprocessing")
         self.products_file = products_file if not self.products_file else self.products_file
         if not (self.products_file and os.path.isfile(self.products_file)):
             print("Product file does not exist")
@@ -44,6 +46,7 @@ class RAGModel():
 
     def generate_image_embeddings(self, image_loc, path=False):
         try:
+            print("Processing: ", image_loc)
             if (not path):
                 response = requests.get(image_loc)
                 img_content = response.content
@@ -62,6 +65,7 @@ class RAGModel():
 
 
     def generate_embeddings(self):
+        print("Generating Embeddings")
         if not (self.preprocessed_file and os.path.isfile(self.preprocessed_file)):
             print("Preprocessed file not found")
             return
@@ -70,8 +74,12 @@ class RAGModel():
 
         products_df['embedding_text'] = products_df.apply(lambda row: f"{row['brand_name']} {row['product_name']} {row['description']}",axis=1)
 
+        print("Generating Text Embeddings")
+
         text_embeddings = self.model.encode(products_df["embedding_text"].tolist())
         products_df['embedding'] = text_embeddings.tolist()
+
+        print("Generating Image Embeddings")
     
         products_df["image_embeddings"] = products_df.apply(
             lambda row: self.generate_image_embeddings(row["primary_image"]) 
@@ -79,6 +87,8 @@ class RAGModel():
             else np.zeros((self.img_embedding_dim,)), 
             axis=1
         )
+        
+        print("Combining embeddings")
 
         products_df["combined_embeddings"] = products_df.apply(
             lambda row: np.concatenate((row["embedding"], row["image_embeddings"])), 
@@ -95,6 +105,7 @@ class RAGModel():
         self.index_file = f"{self.products_file[:-5]}_index.faiss"
 
     def search_products(self, query, index=None, k=5):
+        print("Searching products with text")
         if not (self.index_file and os.path.isfile(self.index_file)):
             print("FAISS index file not found")
             return
@@ -119,7 +130,8 @@ class RAGModel():
             results.append(product)
         return results
 
-    def search_with_image(self, image_path, k=5):
+    def search_with_image(self, image_path, k=15):
+        print("Searching products with image")
         if not (self.index_file and os.path.isfile(self.index_file)):
             print("FAISS index file not found")
             return
@@ -128,39 +140,45 @@ class RAGModel():
             return
 
         image_embedding = self.generate_image_embeddings(image_path, path=True)
-
         zero_text_embedding = np.zeros(self.text_embedding_dim)
         combined_embedding = np.concatenate([zero_text_embedding, image_embedding])
-
         combined_embedding = np.reshape(combined_embedding, (1, -1)).astype('float32')
 
         index = faiss.read_index(self.index_file)
-        distances, indices = index.search(combined_embedding, k)
+        distances, indices = index.search(combined_embedding, k * 2)
 
         results = []
+        seen_product_names = set()
         products_df = pandas.read_pickle(self.preprocessed_file)
+
         for i in range(len(indices[0])):
             idx = indices[0][i]
             distance = distances[0][i]
 
             product = products_df.iloc[idx].to_dict()
             product["similarity"] = float(1 / (1 + distance))
-            results.append(product)
-        
+
+            if product["product_name"] not in seen_product_names and product["product_url"] != "":
+                seen_product_names.add(product["product_name"])
+                results.append(product)
+
+            if len(results) >= k:
+                break
+
         return results
         
 
 
-rag = RAGModel("products.json")
+rag = RAGModel("merged.json")
 
-rag.preprocess()
-rag.generate_embeddings()
+# rag.preprocess()
+# rag.generate_embeddings()
 
 # results = rag.search_products("watches")
 # with open("results.json", "w") as f:
 #     json.dump(results, f, indent = 4)
 
-results = rag.search_with_image("abc.jpg")
+results = rag.search_with_image("search_image.jpg")
 
 with open("results.json", "w") as f:
     json.dump(results, f, indent=4)
